@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,minimum-scale=1,user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>风险评估</title>
+    <link rel="stylesheet" href="../css/common.min.css">
+</head>
+
+<body>
+    <section class="answer" id="answer">
+    </section>
+
+    <script src="../js/jquery-1.11.1.min.js"></script>
+    <script src="../js/artTemplate.js"></script>
+    <script src="../js/layer_mobile/layer.js"></script>
+    <script id="artDom" type="text/html">
+        {{each questionList as item index}}
+        <div class="answer-item js-item-{{item.seq}}">
+                <p class="answer-item-title">{{item.seq}}、{{item.question}}</p>
+                <div class="answer-item-list">
+                    {{each item.option as value index}}
+                    <label>
+                        <input type="radio" name="{{item.seq}}" value="{{value.seq}}" />
+                        <div class="answer-txt">{{getLetter(value.seq)}}、{{value.optionContent}}</div>
+                    </label>
+                    {{/each}}
+                </div>
+        </div>
+        {{/each}}
+        <div class="answer-page">
+                <button type="button" class="page-btn page-btn_left fl js-up">
+                    <i>←</i>上一题</button>
+                <span class="page-num"><i class="js-pageNumber"></i>/{{questionList.length}}</span>
+                <button type="button" class="page-btn page-btn_right fr js-next">下一题
+                    <i>→</i>
+                </button>
+                <button type="button" class="page-btn page-btn_right fr js-submit" style="display:none;">提交
+                        <i>→</i>
+                </button>
+        </div>
+    </script>
+
+    <script id="artResult" type="text/html">
+        <div class="answer-result">
+                <p class="result-txt">您的风险评测结果为<br/><br/><strong>{{result}}</strong></p>
+                <img src="{{'../imgs/risk/'+userType(score)+'.png'}}" class="result-img"/>
+                <p class="result-warn">{{postscript}}</p>
+                <div class="">
+                    <button type="button" class="risk-btn risk-btn_start">完成评估</button>
+                    <button type="button" class="risk-btn risk-btn_later js-renew">重新评估</button>
+                </div>
+            </div>
+    </script>
+    <script>
+        $(function () {
+            var data = {},
+                index = 0,  //题目索引
+                answer = {};//答案列表
+
+
+            //评测结果图片
+            template.helper("userType", function (value) {
+                if (value <= 20) {
+                    //保守
+                    return 'icon-cautious';
+                } else if (value >= 21 && value <= 45) {
+                    //稳健
+                    return 'icon-steady';
+                } else if (value >= 46 && value <= 70) {
+                    //平衡
+                    return 'icon-balance';
+                } else if (value >= 71 && value <= 85) {
+                    //成长型
+                    return 'icon-growing';
+                } else if (value >= 86 && value <= 100) {
+                    //进取型
+                    return 'icon-enterprising';
+                }
+            });
+
+            //转换英文字母
+            template.helper("getLetter", function (value) {
+                var letter = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+                return letter[value - 1];
+            });
+
+
+            //获取问卷内容
+            function getIssue() {
+                $.get('../js/data.json', function (result) {
+                    if (result.isSuccess) {
+                        data = result.data;
+                        var html = template('artDom', data);
+                        document.getElementById('answer').innerHTML = html;
+                        showIssue(true);
+                    }
+                })
+            }
+
+            //提交问卷
+            function submitIssue() {
+                console.log(JSON.stringify(answer))
+                $.get('../js/result.json', { answer: JSON.stringify(answer), id: data.id, customerId: data.customerId }, function (result) {
+                    //渲染结果DOM
+                    if (result.isSuccess) {
+                        var html = template('artResult', result.data);
+                        document.getElementById('answer').innerHTML = html;
+
+                        //重新评估
+                        $('.js-renew').on('click', function () {
+                            location.reload(true);
+                        })
+
+
+
+                    }
+
+                })
+            }
+
+
+            //存放用户选择的答案
+            function getAnswer(event) {
+                var currentIssue = index;//当前选中的值
+                if (answer[currentIssue]) {
+                    //老问题，原来有值
+                    answer[currentIssue][0] = event.value;
+                } else {
+                    //新问题
+                    var currentValue = event.value;
+                    answer[index] = [currentValue];
+                }
+            }
+
+            //显示隐藏问题列表
+            function showIssue(flg) {
+                if (flg) {
+                    //下一页
+                    ++index;
+                } else {
+                    //上一页
+                    --index;
+                }
+                //第一题时不显示“上一题”
+                index == 1 ? $('.js-up').hide() : $('.js-up').show().addClass('page-btn-show');
+                if (index == data.questionList.length) {
+                    //最后一题
+                    $('.js-next').hide();
+                    $('.js-submit').show();
+                } else {
+                    $('.js-next').show();
+                    $('.js-submit').hide();
+                }
+
+                $('.js-pageNumber').html(index);
+                var dom = '.js-item-' + index;
+                $(dom).show().siblings('.answer-item').hide();
+            }
+
+            //上一页
+            $(document).on('click', '.js-up', function (event) {
+                event.preventDefault();
+                showIssue(false);
+            })
+
+            //下一页
+            $(document).on('click', '.js-next', function (event) {
+                event.preventDefault();
+                showIssue(true);
+            })
+
+            //提交答卷
+            $(document).on('click', '.js-submit', function (event) {
+                event.preventDefault();
+
+                if (Object.keys(answer).length != data.questionList.length) {
+                    //todo:没做完
+                    layer.open({
+                        content: '请完整填写问卷'
+                        , skin: 'msg'
+                        , time: 2 //2秒后自动关闭
+                    })
+                    return false;
+                }
+                submitIssue();
+            })
+
+            //用户答题
+            $(document).on('click', ".answer-item-list input[type='radio']", function (event) {
+                //存放选择的答案
+                getAnswer(event.target);
+            })
+
+            getIssue()
+
+        })
+    </script>
+</body>
+
+</html>

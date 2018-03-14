@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,minimum-scale=1,user-scalable=no">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="format-detection" content="telephone=no,email=no">
+    <meta name="Keywords" content="认证">
+    <meta name="Description" content="认证">
+    <title>认证</title>
+    <link rel="stylesheet" type="text/css" href="../css/common.css">
+    <link rel="stylesheet" href="../css/approve.css">
+</head>
+
+<body>
+    <div class="main">
+        <div class="header t_c">请确认您的身份</div>
+        <div class="approve">
+            <label>
+                <input class="txt js-name" placeholder="客户姓名" value="" />
+                <span class="icon icon-name"></span>
+            </label>
+            <label>
+                <input class="txt js-id-card" maxlength="18" placeholder="身份证号" value="" />
+                <span class="icon icon-id-card"></span>
+            </label>
+            <label>
+                <input class="txt js-mobile" maxlength="11" placeholder="手机号码" value="" />
+                <span class="icon icon-mobile"></span>
+                <a class="verify js-verify t_c">获取验证码</a>
+            </label>
+            <label>
+                <input class="txt js-code" maxlength="6" placeholder="验证码" />
+                <span class="icon icon-code"></span>
+            </label>
+            <a class="btn submit js-submit" href="">提交</a>
+            <a class="btn cancel js-cancel" href="">取消</a>
+        </div>
+    </div>
+    <div id="layerSuccess" class="hidden">
+        <div class="mask">
+            <img src="../imgs/approve/success.png" alt="" />
+            <p>身份认证成功！</p>
+            <div class="btn">
+                <a class="js-close" href="">确定</a>
+            </div>
+        </div>
+    </div>
+    <div id="layerFail" class="hidden">
+        <div class="mask fail">
+            <img src="../imgs/approve/fail.png" alt="" />
+            <p class="js-fail-msg">身份认证失败！</p>
+            <div class="btn">
+                <a class="js-close" href="">关闭</a>
+                <a href="">重新认证</a>
+            </div>
+        </div>
+    </div>
+    <script src="../js/jquery-1.11.1.min.js"></script>
+    <script src="../js/layer_mobile/layer.js"></script>
+    <script>
+        // 点击发送验证码
+        $(".js-verify").on("click", function (e) {
+            e.preventDefault();
+
+            var msg = verify();
+
+            if (msg === true) {
+                sendCode();
+            } else {
+                layer.open({
+                    content: msg,
+                    skin: 'msg',
+                    time: 5
+                });
+            }
+        });
+
+        // 关闭弹出层
+        $(".js-close").on("click", function (e) {
+            e.preventDefault();
+
+            layer.closeAll();
+        });
+
+        // 取消
+        $(".js-cancel").on("click", function(){
+            e.preventDefault();
+
+            history.go(-1);
+        });
+
+        // 提交
+        $(".js-submit").on("click", function (e) {
+            e.preventDefault();
+
+            var msg = verify(),
+                code = $(".js-code").val();
+
+            if (msg !== true) {
+                layer.open({
+                    content: msg,
+                    skin: 'msg',
+                    time: 5
+                });
+
+                return false;
+            }
+
+            if (!code) {
+                alert("请输入验证码");
+
+                return false;
+            }
+
+            $.ajax({
+                url: "http://10.0.1.50:8080/qjssys/wechat/contactCustomer",
+                data: {
+                    openId: "4685641484846541",
+                    mobile: $(".js-mobile").val(),
+                    name: $(".js-name").val(),
+                    idNumber: $(".js-id-card").val(),
+                    code: code
+                },
+                type: "post",
+                success: function (res) {
+                    if (!res.isSucess) {
+                        $(".js-fail-msg").text(res.msg);
+                        
+                        layer.open({
+                            title: false,
+                            closeBtn: false,
+                            shadeClose: true,
+                            type: 1,
+                            content: $("#layerFail").html()
+                        });
+
+                        return false;
+                    }
+
+                    layer.open({
+                        title: false,
+                        closeBtn: false,
+                        shadeClose: true,
+                        type: 1,
+                        content: $("#layerSuccess").html()
+                    });
+                }
+            });
+        });
+
+
+        // 验证客户姓名、身份证号、手机号码
+        function verify() {
+            var name = $(".js-name").val(),
+                mobile = $(".js-mobile").val(),
+                card = $(".js-id-card").val();
+
+            if (name == "") {
+                return "请输入客户姓名";
+            }
+
+            if (card == "") {
+                return "请输入身份证号";
+            }
+
+            if (mobile == "") {
+                return "请输入手机号码";
+            }
+
+            if (!/^((13|14|15|17|18)[0-9]{1}\d{8})$/.test(mobile)) {
+                return "请输入正确的手机号码";
+            }
+
+            return true;
+        }
+
+        // 发送验证码
+        function sendCode() {
+            $.ajax({
+                url: "http://10.0.1.50:8080/qjssys/wechat/getValidateCode",
+                data: {
+                    mobile: $(".js-mobile").val(),
+                    name: $(".js-name").val(),
+                    idNumber: $(".js-id-card").val()
+                },
+                type: "post",
+                success: function (res) {
+                    if (!res.isSucess) {
+                        layer.open({
+                            content: res.msg,
+                            skin: 'msg',
+                            time: 5
+                        });
+
+                        return false;
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+
+</html>
